@@ -159,7 +159,10 @@ class TuqiangolAPI:
                 location = resp.headers.get("Location", "")
                 text = await resp.text()
         except (aiohttp.ClientError, TimeoutError) as err:
-            raise TuqiangolConnectionError(f"{path}: {err}") from err
+            # some aiohttp errors stringify to an empty string, which would make
+            # the log line useless; always include the exception type
+            detail = str(err).strip() or type(err).__name__
+            raise TuqiangolConnectionError(f"{path}: {detail}") from err
 
         if status in REDIRECT_CODES or (location and LOGIN_HINT in location):
             # The console answers http:// with a redirect to https://

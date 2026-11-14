@@ -9,6 +9,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from . import settings as dev_settings
@@ -42,6 +44,36 @@ def async_selected_imeis(entry: ConfigEntry) -> list[str]:
         or entry.data.get(CONF_DEVICE_IMEI)
         or []
     )
+
+
+def _async_prune_removed_devices(
+    hass: HomeAssistant, entry: ConfigEntry, keep: set[str]
+) -> None:
+    """Remove entities and devices that are no longer selected.
+
+    Reloading a config entry does not clean the registries: an entity whose
+    device was deselected simply stops being created and lingers forever as
+    ``unavailable``. Remove them so the entry only lists selected devices.
+    """
+    ent_reg = er.async_get(hass)
+    dev_reg = dr.async_get(hass)
+
+    wanted = {f"{DOMAIN}_{imei}_fuel" for imei in keep}
+    for item in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if item.platform != DOMAIN or item.unique_id in wanted:
+            continue
+        _LOGGER.debug("移除已取消选择的实体 %s", item.entity_id)
+        ent_reg.async_remove(item.entity_id)
+
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        imeis = {
+            identifier[1]
+            for identifier in device.identifiers
+            if identifier[0] == DOMAIN
+        }
+        if imeis and not (imeis & keep):
+            _LOGGER.debug("移除已取消选择的设备 %s", device.name or device.id)
+            dev_reg.async_remove_device(device.id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -96,6 +128,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not supported:
         _LOGGER.warning("集成 %s 没有可用的断油路设备，请在“配置”中重新选择", entry.title)
+
+    # Remove registry entries of devices the user deselected. Base this on the
+    # selection, not on `supported`: a temporary platform failure must never
+    # delete entities for devices the user still wants.
+    _async_prune_removed_devices(hass, entry, set(async_selected_imeis(entry)))
 
     coordinator = TuqiangolCoordinator(hass, entry, api, supported, device_map)
     await coordinator.async_config_entry_first_refresh()
