@@ -18,7 +18,7 @@
 | --- | --- |
 | `switch.<设备名>_<油路/fuel_circuit>` | **on = 断油路**（`...YL1:1`）<br>**off = 恢复油路**（`...YL1:0`） |
 
-> 实体名称跟随 HA 界面语言：中文环境为「油路」（如 `switch.hao_jue_afr125_油路`），英文环境为「Fuel circuit」（如 `switch.hao_jue_afr125_fuel_circuit`）。
+> 实体名称跟随 HA 界面语言：中文环境为「油路」（如 `switch.<DEVICE>_油路`），英文环境为「Fuel circuit」（如 `switch.<DEVICE>_fuel_circuit`）。
 
 属性：
 
@@ -57,17 +57,41 @@
 ## 配置
 
 1. 设置 → 设备与服务 → **添加集成** → 搜索 `途强油路控制`
-2. 第一步填写：
-   - **站点地址**：默认 `https://www.tuqiangol.com`
-   - **账号** / **密码**：途强在线网页控制台账号
-3. 第二步**选择设备**：只列出真正支持「外置继电器油路控制」指令的设备（登录时会逐个校验，不支持的设备不会出现）
-4. 之后可在集成的 **配置** 中修改：
-   - **状态刷新间隔（秒）**：默认 60，允许 15–3600
-   - **指令分类 ID**：默认 `827`（远程控制）
-   - **指令密码**：默认等于登录密码
-   - **油路参数 ID**：可留空，留空时按记录中的 `YL1` 标记自动识别
+2. 填写站点地址（默认 `https://www.tuqiangol.com`）和账号密码
+3. 选择设备：只列出真正支持「外置继电器油路控制」指令的设备（登录时逐个校验，不支持的不会出现）
+4. 逐台确认设备参数（每选一台填一次，界面会显示当前设备名与剩余台数）
 
 保存后集成自动重载并生成实体。
+
+### 每台设备可单独设置
+
+每台设备都有一套独立参数，互不影响：
+
+| 参数 | 说明 | 留空时 |
+| --- | --- | --- |
+| **状态刷新间隔（秒）** | 该设备的轮询周期，15–3600 | 用 60 |
+| **指令分类 ID** | 该设备指令所在的分类 | 用 `827`（远程控制） |
+| **油路参数 ID** | 该设备油路开关的参数 ID | 按记录中的 `YL1` 标记自动识别 |
+| **指令密码** | 下发指令时校验的密码 | 用登录密码 |
+| **反转开关状态** | 开启后 on = 恢复油路、off = 断油路 | 关闭（on = 断油路） |
+
+> 一个集成条目共用一个轮询器，因此实际轮询频率取所有设备中最短的那个；
+> 每台设备仍按自己的间隔决定"这次要不要真的去读"。
+
+之后随时可以在集成的 **配置** 里重新选择设备、逐台改参数。
+
+### 反转开关状态
+
+默认 `on` = 断油路、`off` = 恢复油路。某些场景下（例如希望 `on` 表示"油路正常"）
+可以给该设备开启反转：
+
+| 实体状态 | 反转关闭（默认） | 反转开启 |
+| --- | --- | --- |
+| `on` | 断油路 | 恢复油路 |
+| `off` | 恢复油路 | 断油路 |
+
+反转只影响显示与 `switch.turn_on/off` 的语义，实际下发的平台指令始终与你的意图一致。
+实体属性 `inverted` 会显示当前是否反转。
 
 ---
 
@@ -77,21 +101,19 @@
 # 断油路
 service: switch.turn_on
 target:
-  entity_id: switch.hao_jue_afr125_fuel_circuit
+  entity_id: switch.<DEVICE>_fuel_circuit
 
 # 恢复油路
 service: switch.turn_off
 target:
-  entity_id: switch.hao_jue_afr125_fuel_circuit
+  entity_id: switch.<DEVICE>_fuel_circuit
 ```
 
 实体 ID 由设备名 + `油路` 生成，实际值可在「开发者工具 → 状态」中查看。
 
 ---
 
-## 接口流程（依据抓包还原）
-
-抓包样本：工作目录下的 `www.tuqiangol.com.har`。
+## 接口流程
 
 1. `POST /getNewDomain` → `domainId=www.tuqiangol.com`
 2. `POST /api/regdc` → `ver=1&method=login&account=...&password=<编码密码>&language=zh`
@@ -101,12 +123,12 @@ target:
 4. `POST /console/getUserGroup` → 分组 `orgId`
 5. `POST /console/queryEquipmentList` → 设备列表（`imei` / `deviceName` / `mcType`）
 6. `POST /device/getInstructionAndParams`（`imei`、`mcType`、`typeId=827`）→ 指令定义
-   - `id=112577`，`orderName=外置继电器油路控制`
-   - 参数 `id=25651`，`paramVals=恢复油路:SPBSJ*P:BSJGPS*YL1:0;断油路:SPBSJ*P:BSJGPS*YL1:1`
+   - 返回 `orderName=外置继电器油路控制` 的指令
+   - 其参数值形如 `恢复油路:...:0;断油路:...:1`，`paramVals=恢复油路:SPBSJ*P:BSJGPS*YL1:0;断油路:SPBSJ*P:BSJGPS*YL1:1`
 7. `POST /device/sendIns`
    ```
-   imei=...&orderContent=GENERAL|8300|-1|1-1&5-<{0}>&instructionId=112577
-   &instructionName=外置继电器油路控制&param=25651,SPBSJ*P:BSJGPS*YL1:1
+   imei=...&orderContent=<指令模板>&instructionId=<指令ID>
+   &instructionName=<指令名>&param=<参数ID>,<参数值>
    &instructionPwd=<指令密码>&isUsePwd=1&isOffLine=1
    ```
 8. `POST /device/getCommandRecord`（`userId=&imei=...`）→ 平台记录
@@ -262,11 +284,11 @@ target:
 ---
 ### 15. 无效的油路参数 ID 被原样下发
 
-**现象**：用户在选项里把 `25651` 误填成 `25652`，平台仍返回成功，但指令打到了不存在的参数上。
+**现象**：用户在选项里把参数 ID 填错一位，平台仍返回成功，但指令打到了不存在的参数上。
 
 **修复**：下发前校验该 ID 是否属于设备当前的参数列表；不属于则记录警告并回退到自动识别。
 
-**验证**：错误 ID 被拦截，实际发出的仍是 `25651`。
+**验证**：错误 ID 被拦截，实际发出的仍是自动识别的正确 ID。
 
 ### 16. 读取与下发使用的参数 ID 不一致
 
@@ -338,7 +360,7 @@ target:
 已在 Home Assistant 2024.12.5 实机加载验证：
 
 - 配置流程两步（账号 → 选择设备）通过，选项流程、重载、卸载通过
-- 实体创建：`switch.hao_jue_afr125_fuel_circuit`
+- 实体创建：`switch.<DEVICE>_fuel_circuit`
 - `switch.turn_on` → `code=255`，状态 `on`；`switch.turn_off` → `off`
 - 连续多轮切换无回弹；通知刷新后状态稳定
 - 与其他集成同时加载时互不干扰
