@@ -7,7 +7,7 @@ config entry under ``CONF_DEVICE_SETTINGS`` as::
       "<imei>":
         scan_interval: 90
         instruction_type_id: "827"
-        fuel_param_id: "25651"
+        fuel_param_id: "<param-id>"
         invert: true
         instruction_password: ""
 

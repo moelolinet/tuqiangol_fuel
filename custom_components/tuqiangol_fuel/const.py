@@ -33,8 +33,7 @@ CODE_OFFLINE_SAVED = 10005  # 终端离线，指令已存入离线队列
 CODE_OFFLINE_ERROR = 10006  # 终端离线且入队失败，指令未生效
 
 # 平台回执中表示“终端已处于某状态，本次未执行、不会产生新记录”的特征串，
-# 以及它们各自对应的实际状态。命中且与请求动作一致时无需等待新记录，
-# 否则会白白阻塞 CONFIRM_TIMEOUT 秒（实测 21 秒）。
+# 以及它们各自对应的实际状态。命中且与请求动作一致时无需等待新记录。
 ALREADY_IN_STATE_CUT = "already in the cut off fuel status"
 ALREADY_IN_STATE_RESTORE = "in the state of oil power connection"
 ALREADY_IN_STATE_MARKERS = (
