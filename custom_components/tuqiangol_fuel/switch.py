@@ -12,6 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from . import settings as dev_settings
 from .const import (
     CODE_OFFLINE_ERROR,
     CODE_OFFLINE_SAVED,
@@ -21,6 +22,7 @@ from .const import (
     MANUFACTURER,
     MODEL,
     STATE_CUT,
+    STATE_RESTORE,
 )
 from .coordinator import TuqiangolCoordinator
 
@@ -65,12 +67,13 @@ async def async_setup_entry(
 class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity):
     """Switch entity.
 
-    on  = 断油路 (fuel circuit cut)
-    off = 恢复油路 (fuel circuit restored)
+    Normally ``on`` means the fuel circuit is cut. When ``invert`` is enabled
+    for the device the displayed state is flipped, so ``on`` means the circuit
+    is restored. The command sent always matches what the user asked for: the
+    entity maps its own ``on``/``off`` to the correct platform action.
     """
 
     _attr_has_entity_name = True
-    _attr_translation_key = "fuel"
     _attr_icon = "mdi:fuel"
 
     def __init__(
@@ -81,8 +84,10 @@ class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity)
         device: dict[str, Any],
     ) -> None:
         super().__init__(coordinator)
+        self._entry = entry
         self._imei = imei
         self._attr_unique_id = f"{DOMAIN}_{imei}_fuel"
+        self._attr_translation_key = "fuel"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, imei)},
             name=device.get("name") or imei,
@@ -100,13 +105,37 @@ class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity)
         }
 
     @property
+    def _inverted(self) -> bool:
+        """Whether this device's displayed polarity is flipped."""
+        return dev_settings.invert(self._entry, self._imei)
+
+    @property
     def is_on(self) -> bool | None:
-        """True when the fuel circuit is cut."""
+        """Displayed state, honouring the per-device ``invert`` setting."""
         payload = (self.coordinator.data or {}).get(self._imei) or {}
         state = payload.get("state")
         if state is None:
             return None
-        return state == STATE_CUT
+        cut = state == STATE_CUT
+        return (not cut) if self._inverted else cut
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the raw platform state and the effective settings."""
+        attrs = dict(self._attr_extra_state_attributes)
+        payload = (self.coordinator.data or {}).get(self._imei) or {}
+        state = payload.get("state")
+        attrs["fuel_circuit"] = {
+            STATE_CUT: "断油路",
+            STATE_RESTORE: "恢复油路",
+        }.get(state)
+        attrs["inverted"] = self._inverted
+        attrs["scan_interval"] = dev_settings.scan_interval(self._entry, self._imei)
+        attrs["instruction_type_id"] = dev_settings.instruction_type_id(
+            self._entry, self._imei
+        )
+        attrs["fuel_param_id"] = dev_settings.fuel_param_id(self._entry, self._imei) or "auto"
+        return attrs
 
     @property
     def available(self) -> bool:
@@ -122,12 +151,12 @@ class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity)
         )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Cut the fuel circuit."""
-        await self._async_send(ACTION_CUT)
+        """Switch the entity to ``on`` (cut, or restore when inverted)."""
+        await self._async_send(ACTION_RESTORE if self._inverted else ACTION_CUT)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Restore the fuel circuit."""
-        await self._async_send(ACTION_RESTORE)
+        """Switch the entity to ``off`` (restore, or cut when inverted)."""
+        await self._async_send(ACTION_CUT if self._inverted else ACTION_RESTORE)
 
     def _set_result(self, action: str, result: dict[str, Any]) -> None:
         code = result.get("code")

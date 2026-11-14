@@ -28,3 +28,6 @@ _api_restore_test.py
 
 # CI workflow: push it after granting the 'workflow' scope to your token
 .github/workflows/validate.yml
+
+# local one-click uploader, never commit
+upload_to_github.bat

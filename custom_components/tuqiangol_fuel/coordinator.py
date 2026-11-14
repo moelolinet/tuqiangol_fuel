@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from . import settings as dev_settings
 from .api import TuqiangolAPI, TuqiangolError
 from .const import (
     ALREADY_IN_STATE_CUT,
@@ -19,10 +20,6 @@ from .const import (
     CODE_OFFLINE_ERROR,
     CODE_OFFLINE_SAVED,
     CODE_OK,
-    CONF_FUEL_PARAM_ID,
-    CONF_INSTRUCTION_PASSWORD,
-    CONF_SCAN_INTERVAL,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     FUEL_RECORD_MARKER,
     STATE_CUT,
@@ -57,6 +54,9 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
        the switch bounce back.
     3. When the newest group is ambiguous, the state produced by *our own*
        command wins, because that state is known for certain.
+
+    Polling and device parameters are resolved per device, so each entry can
+    expose devices with different intervals and instruction settings.
     """
 
     def __init__(
@@ -80,13 +80,11 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._available: dict[str, bool] = {}
         # one lock per device: a slow terminal must not block the others
         self._locks: dict[str, asyncio.Lock] = {}
-        interval = int(
-            entry.options.get(
-                CONF_SCAN_INTERVAL,
-                entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            )
-        )
-        interval = max(15, min(3600, interval))
+        # imei -> loop time of the last successful read (per-device intervals)
+        self._last_poll: dict[str, float] = {}
+        # a single coordinator polls every device, so it runs at the fastest
+        # interval any device asked for
+        interval = dev_settings.max_supported_interval(entry, imeis)
         super().__init__(
             hass,
             _LOGGER,
@@ -103,7 +101,13 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """
         data: dict[str, dict[str, Any]] = {}
         failures: list[str] = []
+        due = self._due_devices()
+
         for imei in self.imeis:
+            if imei not in due:
+                previous = (self.data or {}).get(imei)
+                data[imei] = previous or {"state": None, "record": None}
+                continue
             try:
                 data[imei] = await self._async_read_state(imei, adopt_new=True)
             except UpdateFailed as err:
@@ -114,10 +118,24 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 _LOGGER.warning("设备 %s 状态读取失败，保留上次状态: %s", imei, err)
             else:
                 self._available[imei] = True
+                self._last_poll[imei] = asyncio.get_running_loop().time()
 
-        if failures and len(failures) == len(self.imeis):
+        if due and failures and len(failures) == len(due):
             raise UpdateFailed("; ".join(failures))
         return data
+
+    def _due_devices(self) -> set[str]:
+        """Devices whose own interval has elapsed since the previous read."""
+        loop = asyncio.get_running_loop()
+        now = loop.time()
+        base = dev_settings.max_supported_interval(self.entry, self.imeis)
+        due: set[str] = set()
+        for imei in self.imeis:
+            interval = dev_settings.scan_interval(self.entry, imei)
+            last = self._last_poll.get(imei)
+            if last is None or now - last >= interval - (base / 2):
+                due.add(imei)
+        return due
 
     async def _async_read_state(
         self, imei: str, adopt_new: bool
@@ -130,9 +148,7 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
         # same lookup order as the send path, otherwise polling and sending
         # could disagree about which parameter identifies the fuel switch
-        param_id = self.entry.options.get(CONF_FUEL_PARAM_ID) or self.entry.data.get(
-            CONF_FUEL_PARAM_ID
-        ) or None
+        param_id = dev_settings.fuel_param_id(self.entry, imei) or None
         fuel_records = self._fuel_records(records, param_id)
         newest = self._newest_group(fuel_records)
         present_ids = [
@@ -178,7 +194,10 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # could bounce the state on the next poll).
             self._trim(known, present_ids)
 
-        return {"state": self._state.get(imei), "record": self._newest(fuel_records)}
+        return {
+            "state": self._state.get(imei),
+            "record": self._newest(fuel_records),
+        }
 
     def async_is_available(self, imei: str) -> bool:
         """Whether the last poll for this specific device succeeded."""
@@ -241,23 +260,16 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     # --------------------------------------------------------------- actions
     async def async_send_fuel(self, action: str, imei: str) -> dict[str, Any]:
         """Send the command and show the requested state immediately."""
-        from . import async_instruction_type_id, async_mc_type
-
-        type_id = async_instruction_type_id(self.entry)
+        type_id = dev_settings.instruction_type_id(self.entry, imei)
         # same fallback chain as setup, otherwise a device whose model is only
         # known from the account device list would fail on every command
-        mc_type = (
-            async_mc_type(self.entry, imei)
-            or (self._device_map.get(imei) or {}).get("mc_type", "")
+        mc_type = dev_settings.mc_type(self.entry, imei) or (
+            self._device_map.get(imei) or {}
+        ).get("mc_type", "")
+        instruction_password = dev_settings.instruction_password(
+            self.entry, imei, self.api.password
         )
-        instruction_password = (
-            self.entry.options.get(CONF_INSTRUCTION_PASSWORD)
-            or self.entry.data.get(CONF_INSTRUCTION_PASSWORD)
-            or self.api.password
-        )
-        param_id = self.entry.options.get(CONF_FUEL_PARAM_ID) or self.entry.data.get(
-            CONF_FUEL_PARAM_ID
-        )
+        param_id = dev_settings.fuel_param_id(self.entry, imei) or None
 
         # one command at a time per device, so the new record can be identified
         async with self._locks.setdefault(imei, asyncio.Lock()):
@@ -290,10 +302,7 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # device (and the caller) for the whole confirm timeout.
             if self._already_in_state(action, result):
                 _LOGGER.debug("设备 %s 已处于目标状态，无需等待新记录", imei)
-                self._state[imei] = action
-                self.data.setdefault(imei, {})
-                self.data[imei]["state"] = action
-                self.async_update_listeners()
+                self._set_state(imei, action)
                 return result
 
             # A reply naming the opposite state means the platform refused the
@@ -308,10 +317,7 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
             # accepted by the platform: reflect it right away
             self._pending_action[imei] = action
-            self._state[imei] = action
-            self.data.setdefault(imei, {})
-            self.data[imei]["state"] = action
-            self.async_update_listeners()
+            self._set_state(imei, action)
 
             try:
                 await self._async_wait_for_new_record(imei)
@@ -320,6 +326,13 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 # pending action behind
                 self._pending_action.pop(imei, None)
         return result
+
+    def _set_state(self, imei: str, action: str) -> None:
+        """Store one device state and notify entities."""
+        self._state[imei] = action
+        self.data.setdefault(imei, {})
+        self.data[imei]["state"] = action
+        self.async_update_listeners()
 
     @staticmethod
     def _reply_text(result: dict[str, Any]) -> str:

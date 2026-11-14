@@ -18,6 +18,17 @@
           "device_imei": "Devices"
         }
       },
+      "device": {
+        "title": "Device settings: {name}",
+        "description": "Device {name} (IMEI {imei}). Leave a field empty to use the default. {remaining} device(s) left to configure.",
+        "data": {
+          "scan_interval": "State refresh interval (seconds, 15-3600, empty = 60)",
+          "instruction_type_id": "Instruction category ID (empty = 827)",
+          "fuel_param_id": "Fuel parameter ID (empty = auto-detect)",
+          "instruction_password": "Instruction password (empty = login password)",
+          "invert": "Invert switch state (on = restore, off = cut)"
+        }
+      },
       "reauth_confirm": {
         "title": "Re-authenticate",
         "description": "The saved credentials for {username} stopped working. Enter the password again.",
@@ -41,20 +52,28 @@
   "options": {
     "step": {
       "init": {
-        "title": "Devices and instruction options",
-        "description": "Select the devices to expose. Leave the instruction password empty to reuse the login password.",
+        "title": "Select devices",
+        "description": "Choose the devices that should expose a fuel switch; each one is configured next.",
         "data": {
-          "device_imei": "Devices",
-          "scan_interval": "State refresh interval (seconds)",
-          "instruction_type_id": "Instruction category ID (827 = remote control)",
-          "instruction_password": "Instruction password",
-          "fuel_param_id": "Fuel parameter ID (optional)"
+          "device_imei": "Devices"
+        }
+      },
+      "device": {
+        "title": "Device settings: {name}",
+        "description": "Device {name} (IMEI {imei}). Leave a field empty to use the default. {remaining} device(s) left to configure.",
+        "data": {
+          "scan_interval": "State refresh interval (seconds, 15-3600, empty = 60)",
+          "instruction_type_id": "Instruction category ID (empty = 827)",
+          "fuel_param_id": "Fuel parameter ID (empty = auto-detect)",
+          "instruction_password": "Instruction password (empty = login password)",
+          "invert": "Invert switch state (on = restore, off = cut)"
         }
       }
     },
     "error": {
       "invalid_auth": "Invalid account or password",
       "cannot_connect": "Cannot reach the Tuqiangol cloud",
+      "no_devices": "Select at least one device",
       "unknown": "Unexpected error"
     },
     "abort": {

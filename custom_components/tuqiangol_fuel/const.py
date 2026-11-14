@@ -8,6 +8,7 @@ MODEL = "途强在线定位器"
 DEFAULT_BASE_URL = "https://www.tuqiangol.com"
 DEFAULT_INSTRUCTION_TYPE_ID = "827"
 DEFAULT_SCAN_INTERVAL = 60
+DEFAULT_INVERT = False
 
 CONF_BASE_URL = "base_url"
 CONF_DEVICE_IMEI = "device_imei"
@@ -16,6 +17,8 @@ CONF_SCAN_INTERVAL = "scan_interval"
 CONF_INSTRUCTION_TYPE_ID = "instruction_type_id"
 CONF_INSTRUCTION_PASSWORD = "instruction_password"
 CONF_FUEL_PARAM_ID = "fuel_param_id"
+CONF_INVERT = "invert"
+CONF_DEVICE_SETTINGS = "device_settings"
 
 STATE_CUT = "cut"
 STATE_RESTORE = "restore"

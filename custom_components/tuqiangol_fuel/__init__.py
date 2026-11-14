@@ -11,21 +11,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
+from . import settings as dev_settings
 from .api import (
     TuqiangolAPI,
     TuqiangolAuthError,
     TuqiangolConnectionError,
     normalize_base_url,
 )
-from .const import (
-    CONF_BASE_URL,
-    CONF_DEVICE_IMEI,
-    CONF_INSTRUCTION_TYPE_ID,
-    CONF_MC_TYPE,
-    DEFAULT_BASE_URL,
-    DEFAULT_INSTRUCTION_TYPE_ID,
-    DOMAIN,
-)
+from .const import CONF_BASE_URL, CONF_DEVICE_IMEI, DEFAULT_BASE_URL, DOMAIN
 from .coordinator import TuqiangolCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,24 +41,6 @@ def async_selected_imeis(entry: ConfigEntry) -> list[str]:
         entry.options.get(CONF_DEVICE_IMEI)
         or entry.data.get(CONF_DEVICE_IMEI)
         or []
-    )
-
-
-def async_mc_type(entry: ConfigEntry, imei: str) -> str:
-    """Return the device model, preferring the value stored in options."""
-    return (
-        (entry.options.get(CONF_MC_TYPE) or {}).get(imei)
-        or (entry.data.get(CONF_MC_TYPE) or {}).get(imei)
-        or ""
-    )
-
-
-def async_instruction_type_id(entry: ConfigEntry) -> str:
-    """Return the instruction category id."""
-    return str(
-        entry.options.get(CONF_INSTRUCTION_TYPE_ID)
-        or entry.data.get(CONF_INSTRUCTION_TYPE_ID)
-        or DEFAULT_INSTRUCTION_TYPE_ID
     )
 
 
@@ -97,14 +72,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(str(err)) from err
 
     device_map = {item["imei"]: item for item in devices}
-    type_id = async_instruction_type_id(entry)
 
     supported: list[str] = []
     for imei in async_selected_imeis(entry):
         if imei not in device_map:
             _LOGGER.warning("设备 %s 不在账号设备列表中，已跳过", imei)
             continue
-        mc_type = async_mc_type(entry, imei) or device_map[imei].get("mc_type", "")
+        mc_type = dev_settings.mc_type(entry, imei) or device_map[imei].get(
+            "mc_type", ""
+        )
+        type_id = dev_settings.instruction_type_id(entry, imei)
         try:
             await api.async_get_fuel_instruction(imei, mc_type, type_id)
         except Exception as err:  # noqa: BLE001
