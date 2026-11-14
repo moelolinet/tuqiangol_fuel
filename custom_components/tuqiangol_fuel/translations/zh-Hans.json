@@ -1,0 +1,71 @@
+{
+  "title": "途强油路控制",
+  "config": {
+    "step": {
+      "user": {
+        "title": "途强在线账号",
+        "description": "填写途强在线（tuqiangol.com）网页控制台的登录账号和密码。",
+        "data": {
+          "base_url": "站点地址",
+          "username": "账号",
+          "password": "密码"
+        }
+      },
+      "devices": {
+        "title": "选择设备",
+        "description": "仅列出支持“外置继电器油路控制”指令的设备。",
+        "data": {
+          "device_imei": "设备"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新认证",
+        "description": "账号 {username} 的凭据已失效，请重新输入密码。",
+        "data": {
+          "password": "密码"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "账号或密码错误",
+      "cannot_connect": "无法连接到途强在线",
+      "no_devices": "该账号下没有支持油路控制的设备",
+      "unknown": "未知错误"
+    },
+    "abort": {
+      "already_configured": "该账号已配置",
+      "reauth_successful": "重新认证成功",
+      "reauth_entry_missing": "配置条目已不存在"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "设备与指令参数",
+        "description": "选择需要启用油路开关的设备。指令密码留空时使用登录密码。",
+        "data": {
+          "device_imei": "设备",
+          "scan_interval": "状态刷新间隔（秒）",
+          "instruction_type_id": "指令分类 ID（827=远程控制）",
+          "instruction_password": "指令密码",
+          "fuel_param_id": "油路参数 ID（可留空自动识别）"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "账号或密码错误",
+      "cannot_connect": "无法连接到途强在线",
+      "unknown": "未知错误"
+    },
+    "abort": {
+      "no_devices": "该账号下没有支持油路控制的设备"
+    }
+  },
+  "entity": {
+    "switch": {
+      "fuel": {
+        "name": "油路"
+      }
+    }
+  }
+}

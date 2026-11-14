@@ -1,0 +1,7 @@
+# Keep line endings consistent across Windows/macOS/Linux checkouts.
+# Home Assistant and HACS parse these files; mixed CRLF/LF causes noisy diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

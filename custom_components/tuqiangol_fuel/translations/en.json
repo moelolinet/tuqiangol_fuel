@@ -1,0 +1,71 @@
+{
+  "title": "Tuqiangol Fuel",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tuqiangol account",
+        "description": "Sign in with your account on the Tuqiangol web console (tuqiangol.com).",
+        "data": {
+          "base_url": "Base URL",
+          "username": "Account",
+          "password": "Password"
+        }
+      },
+      "devices": {
+        "title": "Select devices",
+        "description": "Only devices that expose the fuel relay instruction are listed.",
+        "data": {
+          "device_imei": "Devices"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "The saved credentials for {username} stopped working. Enter the password again.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid account or password",
+      "cannot_connect": "Cannot reach the Tuqiangol cloud",
+      "no_devices": "No device with fuel control support was found",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This account is already configured",
+      "reauth_successful": "Re-authentication was successful",
+      "reauth_entry_missing": "The configuration entry no longer exists"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Devices and instruction options",
+        "description": "Select the devices to expose. Leave the instruction password empty to reuse the login password.",
+        "data": {
+          "device_imei": "Devices",
+          "scan_interval": "State refresh interval (seconds)",
+          "instruction_type_id": "Instruction category ID (827 = remote control)",
+          "instruction_password": "Instruction password",
+          "fuel_param_id": "Fuel parameter ID (optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid account or password",
+      "cannot_connect": "Cannot reach the Tuqiangol cloud",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "no_devices": "No device with fuel control support was found"
+    }
+  },
+  "entity": {
+    "switch": {
+      "fuel": {
+        "name": "Fuel circuit"
+      }
+    }
+  }
+}
