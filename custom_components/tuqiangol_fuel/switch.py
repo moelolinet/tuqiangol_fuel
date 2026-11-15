@@ -74,7 +74,9 @@ class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity)
     """
 
     _attr_has_entity_name = True
-    _attr_icon = "mdi:fuel"
+
+    # Fallback used while the platform state is still unknown.
+    _attr_icon = "mdi:valve"
 
     def __init__(
         self,
@@ -103,6 +105,21 @@ class TuqiangolFuelSwitch(CoordinatorEntity[TuqiangolCoordinator], SwitchEntity)
             "last_message": None,
             "last_record_time": None,
         }
+
+    @property
+    def icon(self) -> str:
+        """Reflect the physical fuel circuit state.
+
+        The icon follows the real state of the circuit, so an inverted switch
+        still shows what the vehicle is actually doing.
+        """
+        payload = (self.coordinator.data or {}).get(self._imei) or {}
+        state = payload.get("state")
+        if state == STATE_CUT:
+            return "mdi:valve-closed"
+        if state == STATE_RESTORE:
+            return "mdi:valve-open"
+        return self._attr_icon
 
     @property
     def _inverted(self) -> bool:
