@@ -6,7 +6,7 @@
 
 Home Assistant 途强在线定位器外置继电器油路控制集成
 
-[![English](https://img.shields.io/badge/English-6e7781?style=for-the-badge&logo=readme&logoColor=white)](README.md)
+[English](README.md) | **简体中文**
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub release](https://img.shields.io/github/v/release/moelolinet/tuqiangol_fuel)](https://github.com/moelolinet/tuqiangol_fuel/releases)
