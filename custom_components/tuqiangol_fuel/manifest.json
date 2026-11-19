@@ -1,13 +1,15 @@
 {
   "domain": "tuqiangol_fuel",
   "name": "Tuqiangol Fuel",
-  "codeowners": ["@moelolinet"],
+  "codeowners": [
+    "@moelolinet"
+  ],
   "config_flow": true,
-  "documentation": "https://github.com/moelolinet/tuqiangol_fuel",
-  "issue_tracker": "https://github.com/moelolinet/tuqiangol_fuel/issues",
-  "integration_type": "hub",
   "dependencies": [],
-  "requirements": [],
+  "documentation": "https://github.com/moelolinet/tuqiangol_fuel",
+  "integration_type": "hub",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/moelolinet/tuqiangol_fuel/issues",
+  "requirements": [],
   "version": "1.1.2"
 }
