@@ -1,71 +1,88 @@
+<div align="center">
+
+<img src="custom_components/tuqiangol_fuel/brand/icon@2x.png" width="150" alt="Tuqiangol Fuel">
+
 # Tuqiangol Fuel
 
-Home Assistant 集成，用于控制途强在线（tuqiangol.com）定位器设备的外置继电器油路。
+Home Assistant integration for the fuel relay of Tuqiangol GPS trackers
 
-仅此一项功能：断油路 / 恢复油路。
+[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-0969da?style=for-the-badge&logo=readme&logoColor=white)](README.zh-CN.md)
 
----
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub release](https://img.shields.io/github/v/release/moelolinet/tuqiangol_fuel)](https://github.com/moelolinet/tuqiangol_fuel/releases)
 
-## 特性
-
-- 每台设备独立参数，互不影响
-- 开关图标随实际油路状态变化
-- 支持状态反转（按设备）
-- 独立 domain，不与其它集成冲突
-- 无第三方依赖
+</div>
 
 ---
 
-## 实体
+Control the external relay fuel circuit of Tuqiangol (`tuqiangol.com`) GPS trackers
+directly from Home Assistant.
 
-每台启用的设备生成一个开关。
+One feature only: **cut the fuel circuit / restore it**.
 
-| 状态 | 默认含义 |
+---
+
+## Features
+
+- Per-device parameters that never affect each other
+- Switch icon follows the actual fuel circuit state
+- Optional state inversion, per device
+- Dedicated domain, so it does not clash with other integrations
+- No third-party dependencies
+
+---
+
+## Entities
+
+Each enabled device creates one switch.
+
+| State | Default meaning |
 | --- | --- |
-| `on` | 断油路 |
-| `off` | 恢复油路 |
+| `on` | Fuel circuit cut |
+| `off` | Fuel circuit restored |
 
-开启「反转」后含义相反。
+With *invert* enabled the meaning is reversed.
 
 ---
 
-## 安装
+## Installation
 
 **HACS**
 
-1. HACS → ⋮ → 自定义存储库
-2. 填入本仓库地址，类别选 Integration
-3. 安装并重启 Home Assistant
+1. HACS → ⋮ → Custom repositories
+2. Add the URL of this repository with category **Integration**
+3. Install and restart Home Assistant
 
-**手动**
+**Manual**
 
-将 `custom_components/tuqiangol_fuel` 复制到 HA 配置目录，重启并强制刷新浏览器。
+Copy `custom_components/tuqiangol_fuel` into your Home Assistant configuration
+directory, restart, then force-refresh the browser.
 
 ---
 
-## 配置
+## Configuration
 
-添加集成后：
+After adding the integration:
 
-1. 填写站点地址与账号密码
-2. 选择设备
-3. 逐台确认参数
+1. Enter the site URL and the account credentials
+2. Select the devices to expose
+3. Confirm the parameters for each device
 
-### 设备参数
+### Device parameters
 
-| 参数 | 说明 |
+| Parameter | Meaning |
 | --- | --- |
-| 状态刷新间隔 | 15–3600 秒，留空用默认值 |
-| 指令分类 ID | 留空用默认值 |
-| 油路参数 ID | 留空自动识别 |
-| 指令密码 | 留空用登录密码 |
-| 反转开关状态 | 开启后 on = 恢复油路 |
+| State refresh interval | 15–3600 seconds; leave empty for the default |
+| Instruction category ID | Leave empty for the default |
+| Fuel parameter ID | Leave empty to detect it automatically |
+| Instruction password | Leave empty to use the login password |
+| Invert switch state | When enabled, `on` = fuel circuit restored |
 
-参数随时可在集成的「配置」中逐台修改。
+Every parameter can be changed later per device through the integration's **Configure** dialog.
 
 ---
 
-## 使用
+## Usage
 
 ```yaml
 service: switch.turn_on
@@ -73,20 +90,22 @@ target:
   entity_id: switch.<DEVICE>_fuel_circuit
 ```
 
-`turn_off` 为反向操作。
+`turn_off` performs the opposite action.
 
 ---
 
-## 说明
+## Notes
 
-- 断油需终端定位正常且车速较低，由平台判定
-- 终端离线时指令进入队列，上线后执行
-- 账号与设备参数保存在 Home Assistant 本地配置中
-- 本项目与途强官方无关
-- 图标需 Home Assistant 2026.3 或更高；升级后若仍显示旧图标，请强制刷新浏览器缓存
+- Cutting the fuel circuit requires the tracker to report a valid position and a low
+  vehicle speed; the platform makes that decision.
+- When the tracker is offline the command is queued and executed once it comes back online.
+- Account and device parameters are stored locally in the Home Assistant configuration.
+- This project is not affiliated with Tuqiangol.
+- The icon requires Home Assistant 2026.3 or newer; force-refresh the browser cache
+  if the old icon is still shown after upgrading.
 
 ---
 
-## 许可
+## License
 
 GPL-3.0
