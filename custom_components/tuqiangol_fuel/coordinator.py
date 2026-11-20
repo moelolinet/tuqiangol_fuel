@@ -9,10 +9,11 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import settings as dev_settings
-from .api import TuqiangolAPI, TuqiangolError
+from .api import TuqiangolAPI, TuqiangolAuthError, TuqiangolError
 from .const import (
     ALREADY_IN_STATE_CUT,
     ALREADY_IN_STATE_MARKERS,
@@ -143,6 +144,12 @@ class TuqiangolCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Read one device and adopt an unseen, unambiguous newest record."""
         try:
             records = await self.api.async_get_records(imei)
+        except TuqiangolAuthError as err:
+            # The stored password no longer works (changed on the platform, or
+            # the account is locked). Retrying every poll would keep hammering
+            # the account, so stop polling and let Home Assistant start the
+            # reauth flow that already exists in the config flow.
+            raise ConfigEntryAuthFailed(f"{imei}: {err}") from err
         except TuqiangolError as err:
             raise UpdateFailed(f"{imei}: {err}") from err
 

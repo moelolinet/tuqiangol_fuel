@@ -404,7 +404,14 @@ class TuqiangolAPI:
             "isUsePwd": str(instruction.get("isUsePwd") or "1"),
             "isOffLine": str(instruction.get("isOffLine") or "1"),
         }
-        _LOGGER.debug("Tuqiangol sendIns payload: %s", payload)
+        # Never log the whole payload: instructionPwd defaults to the account
+        # login password, so a debug log would leak it into bug reports.
+        _LOGGER.debug(
+            "Tuqiangol sendIns: imei=%s instructionId=%s param=%s",
+            payload["imei"],
+            payload["instructionId"],
+            payload["param"],
+        )
         return await self._post("/device/sendIns", payload)
 
     # -------------------------------------------------------------- records
